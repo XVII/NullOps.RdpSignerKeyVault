@@ -1,0 +1,16 @@
+{
+  "profiles": {
+    "NullOps.RdpSigner": {
+      "commandName": "Project",
+      "commandLineArgs": "default.rdp",
+      "environmentVariables": {
+        "TENANT_ID": "",
+        "CLIENT_ID": "",
+        "CLIENT_SECRET": "",
+        "VAULT_URI": "",
+        "CERT_NAME": "",
+        "TIMESTAMP_URL": "",
+      }
+    }
+  }
+}

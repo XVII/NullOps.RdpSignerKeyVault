@@ -55,7 +55,7 @@ public sealed class SignSettings : CommandSettings
 
     [CommandOption("--timestamp-url")]
     [Description("RFC 3161 timestamp server URL (env: TIMESTAMP_URL)")]
-    public string TimestampUrl { get; init; } = Environment.GetEnvironmentVariable("TIMESTAMP_URL");
+    public string? TimestampUrl { get; init; } = Environment.GetEnvironmentVariable("TIMESTAMP_URL");
 
     [CommandArgument(0, "<files>")]
     public required string[] Files { get; init; }
