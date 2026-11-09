@@ -53,6 +53,10 @@ public sealed class SignSettings : CommandSettings
     [Description("Password for certificate file (env: CERT_PASS)")]
     public string? CertificatePassword { get; init; } = Environment.GetEnvironmentVariable("CERT_PASS");
 
+    [CommandOption("--timestamp-url")]
+    [Description("RFC 3161 timestamp server URL (env: TIMESTAMP_URL)")]
+    public string TimestampUrl { get; init; } = Environment.GetEnvironmentVariable("TIMESTAMP_URL");
+
     [CommandArgument(0, "<files>")]
     public required string[] Files { get; init; }
 }

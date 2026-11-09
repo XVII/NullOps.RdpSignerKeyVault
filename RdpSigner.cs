@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,87 +10,100 @@ using System.Text.RegularExpressions;
 
 namespace NullOps.RdpSigner
 {
-	/// <summary>
-	/// The magical Rdp Signer utility.
-	/// </summary>
-	public class RdpSigner : IDisposable
-	{
-		/// <summary>
-		/// Because Rdp expects windows new line formatting, we hardcode it.
-		/// </summary>
-		private const string WindowsNewLine = "\r\n";
+        /// <summary>
+        /// The magical Rdp Signer utility.
+        /// </summary>
+        public class RdpSigner : IDisposable
+        {
+                /// <summary>
+                /// Because Rdp expects windows new line formatting, we hardcode it.
+                /// </summary>
+                private const string WindowsNewLine = "\r\n";
 
-		/// <summary>
-		/// Digest Algorithm to request when CMS signing
-		/// </summary>
-		private const string RdpSignatureDigestAlgorithmName = "sha256";
+                /// <summary>
+                /// Digest Algorithm to request when CMS signing
+                /// </summary>
+                private const string RdpSignatureDigestAlgorithmName = "sha256";
 
-		/// <summary>
-		/// As it says on the box, two bytes with 0x0 value.
-		/// These are used to pad the end of the byte data that is signed.
-		/// The reason there is 2? Unicode!
-		/// </summary>
-		private static readonly byte[] TwoBlankBytes = { 0x0, 0x0 };
+                /// <summary>
+                /// As it says on the box, two bytes with 0x0 value.
+                /// These are used to pad the end of the byte data that is signed.
+                /// The reason there is 2? Unicode!
+                /// </summary>
+                private static readonly byte[] TwoBlankBytes = { 0x0, 0x0 };
 
-		/// <summary>
-		/// The magical unknown rdp signature header.
-		/// </summary>
-		private static readonly byte[] SignatureHeader = { 0x1, 0x0, 0x1, 0x0, 0x1, 0x0, 0x00, 0x00 };
+                /// <summary>
+                /// The magical unknown rdp signature header.
+                /// </summary>
+                private static readonly byte[] SignatureHeader = { 0x1, 0x0, 0x1, 0x0, 0x1, 0x0, 0x00, 0x00 };
 
         /// <summary>
         /// The chain of the signing certificate , including the signing certificate itself. This is included in the signature blob to allow verification without needing to have the signing certificate already in the store.
         /// </summary>
         private readonly X509Certificate2 m_signingCertificate;
 
-		/// <summary>
-		/// The RSA key to sign with
-		/// </summary>
-		private readonly RSA m_rsa;
+                /// <summary>
+                /// The RSA key to sign with
+                /// </summary>
+                private readonly RSA m_rsa;
+                private readonly Uri m_timestampServerUri;
 
-		/// <summary>
-		/// If we are already disposed
-		/// </summary>
-		private bool m_disposed = false;
+                /// <summary>
+                /// If we are already disposed
+                /// </summary>
+                private bool m_disposed = false;
 
-		/// <summary>
-		/// RdpSigner
-		/// </summary>
-		/// <param name="signingCertificate">The certificate you wish to use when signing</param>
-		/// <param name="rsa">The RSA key to sign with</param>
-		public RdpSigner(X509Certificate2 signingCertificate, RSA rsa)
-		{
-			m_signingCertificate = signingCertificate;
-			m_rsa = rsa;
-		}
+                /// <summary>
+                /// RdpSigner
+                /// </summary>
+                /// <param name="signingCertificate">The certificate you wish to use when signing</param>
+                /// <param name="rsa">The RSA key to sign with</param>
+                public RdpSigner(X509Certificate2 signingCertificate, RSA rsa)
+                    : this(signingCertificate, rsa, null)
+                {
+                }
 
-		/// <summary>
-		/// Signs the provided rdp string
-		/// </summary>
-		/// <param name="rdpText">The string data inside an rdp file</param>
-		/// <returns>The signed value within an rdp file</returns>
-		public string Sign(string rdpText)
-		{
-			return Sign(rdpText, m_signingCertificate, m_rsa);
-		}
+                /// <summary>
+                /// RdpSigner
+                /// </summary>
+                /// <param name="signingCertificate">The certificate you wish to use when signing</param>
+                /// <param name="rsa">The RSA key to sign with</param>
+                /// <param name="timestampServerUri">Optional RFC 3161 timestamp server URL</param>
+                public RdpSigner(X509Certificate2 signingCertificate, RSA rsa, Uri timestampServerUri)
+                {
+                        m_signingCertificate = signingCertificate;
+                        m_rsa = rsa;
+                        m_timestampServerUri = timestampServerUri;
+                }
 
-		/// <summary>
-		/// Signs the rdp file at the given location
-		/// </summary>
-		/// <param name="rdpFilePath">Path to the rdp file</param>
-		public void SignFile(string rdpFilePath)
-		{
-			SignFile(rdpFilePath, m_signingCertificate, m_rsa);
-		}
+                /// <summary>
+                /// Signs the provided rdp string
+                /// </summary>
+                /// <param name="rdpText">The string data inside an rdp file</param>
+                /// <returns>The signed value within an rdp file</returns>
+                public string Sign(string rdpText)
+                {
+                        return Sign(rdpText, m_signingCertificate, m_rsa, m_timestampServerUri);
+                }
 
-		/// <summary>
-		/// Signs the rdp file at the given location, outputting the signed file to a now location
-		/// </summary>
-		/// <param name="sourceRdpFilePath">The path to the source rdp file to sign</param>
-		/// <param name="outputRdpFilePath">The output path for the signed rdp file</param>
-		public void SignFile(string sourceRdpFilePath, string outputRdpFilePath)
-		{
-			SignFile(sourceRdpFilePath, outputRdpFilePath, m_signingCertificate, m_rsa);
-		}
+                /// <summary>
+                /// Signs the rdp file at the given location
+                /// </summary>
+                /// <param name="rdpFilePath">Path to the rdp file</param>
+                public void SignFile(string rdpFilePath)
+                {
+                        SignFile(rdpFilePath, m_signingCertificate, m_rsa, m_timestampServerUri);
+                }
+
+                /// <summary>
+                /// Signs the rdp file at the given location, outputting the signed file to a now location
+                /// </summary>
+                /// <param name="sourceRdpFilePath">The path to the source rdp file to sign</param>
+                /// <param name="outputRdpFilePath">The output path for the signed rdp file</param>
+                public void SignFile(string sourceRdpFilePath, string outputRdpFilePath)
+                {
+                        SignFile(sourceRdpFilePath, outputRdpFilePath, m_signingCertificate, m_rsa, m_timestampServerUri);
+                }
 
         /// <summary>
         /// Signs the rdp file at the given location
@@ -98,126 +111,141 @@ namespace NullOps.RdpSigner
         /// <param name="rdpFilePath">Path to the rdp file</param>
         /// <param name="signingCertificate">The certificate you wish to use when signing</param>
         /// <param name="rsa">The RSA key to sign with</param>
-		public static void SignFile(string rdpFilePath, X509Certificate2 signingCertificate, RSA rsa)
-		{
-			if (string.IsNullOrWhiteSpace(rdpFilePath))
-			{
-				throw new ArgumentException(nameof(rdpFilePath) + " must be a valid path.");
-			}
+                public static void SignFile(string rdpFilePath, X509Certificate2 signingCertificate, RSA rsa)
+                {
+                        SignFile(rdpFilePath, signingCertificate, rsa, null);
+                }
 
-			SignFile(rdpFilePath, rdpFilePath, signingCertificate, rsa);
-		}
+                private static void SignFile(string rdpFilePath, X509Certificate2 signingCertificate, RSA rsa, Uri timestampServerUri)
+                {
+                        if (string.IsNullOrWhiteSpace(rdpFilePath))
+                        {
+                                throw new ArgumentException(nameof(rdpFilePath) + " must be a valid path.");
+                        }
 
-		/// <summary>
-		/// Signs the rdp file at the given location, outputting the signed file to a new location
-		/// </summary>
-		/// <param name="sourceRdpFilePath">The path to the source rdp file to sign</param>
-		/// <param name="outputRdpFilePath">The output path for the signed rdp file</param>
-		/// <param name="signingCertificate">The certificate you wish to use when signing</param>
-		/// <param name="rsa">The RSA key to sign with</param>
-		public static void SignFile(string sourceRdpFilePath, string outputRdpFilePath, X509Certificate2 signingCertificate, RSA rsa)
-		{
-			if (string.IsNullOrWhiteSpace(sourceRdpFilePath))
-			{
-				throw new ArgumentException(nameof(sourceRdpFilePath) + " must be a valid path.");
-			}
+                        SignFile(rdpFilePath, rdpFilePath, signingCertificate, rsa, timestampServerUri);
+                }
 
-			if (string.IsNullOrWhiteSpace(outputRdpFilePath))
-			{
-				throw new ArgumentException(nameof(outputRdpFilePath) + " must be a valid path.");
-			}
+                /// <summary>
+                /// Signs the rdp file at the given location, outputting the signed file to a new location
+                /// </summary>
+                /// <param name="sourceRdpFilePath">The path to the source rdp file to sign</param>
+                /// <param name="outputRdpFilePath">The output path for the signed rdp file</param>
+                /// <param name="signingCertificate">The certificate you wish to use when signing</param>
+                /// <param name="rsa">The key to sign with</param>
+                public static void SignFile(string sourceRdpFilePath, string outputRdpFilePath, X509Certificate2 signingCertificate, RSA rsa)
+                {
+                        SignFile(sourceRdpFilePath, outputRdpFilePath, signingCertificate, rsa, null);
+                }
 
-			if (!File.Exists(sourceRdpFilePath))
-			{
-				throw new ArgumentException("File '" + sourceRdpFilePath + "' does not exist.");
-			}
+                private static void SignFile(string sourceRdpFilePath, string outputRdpFilePath, X509Certificate2 signingCertificate, RSA rsa, Uri timestampServerUri)
+                {
+                        if (string.IsNullOrWhiteSpace(sourceRdpFilePath))
+                        {
+                                throw new ArgumentException(nameof(sourceRdpFilePath) + " must be a valid path.");
+                        }
 
-			string sourceText = File.ReadAllText(sourceRdpFilePath);
+                        if (string.IsNullOrWhiteSpace(outputRdpFilePath))
+                        {
+                                throw new ArgumentException(nameof(outputRdpFilePath) + " must be a valid path.");
+                        }
 
-			string signedText = Sign(sourceText, signingCertificate, rsa);
+                        if (!File.Exists(sourceRdpFilePath))
+                        {
+                                throw new ArgumentException("File '" + sourceRdpFilePath + "' does not exist.");
+                        }
 
-			if (!string.IsNullOrWhiteSpace(signedText))
-			{
-				File.WriteAllText(outputRdpFilePath, signedText, Encoding.Unicode);
-			}
-		}
+                        string sourceText = File.ReadAllText(sourceRdpFilePath);
 
-		/// <summary>
-		/// Signs the provided rdp string
-		/// </summary>
-		/// <param name="rdpText">The string data inside an rdp file</param>
-		/// <param name="signingCertificate">The certificate you wish to use when signing</param>
-		/// <param name="rsa">The RSA key to sign with</param>
-		/// <returns>The signed value within an rdp file</returns>
-		public static string Sign(string rdpText, X509Certificate2 signingCertificate, RSA rsa)
-		{
-			List<RdpSetting> settings = ParseSettings(rdpText);
+                        string signedText = Sign(sourceText, signingCertificate, rsa, timestampServerUri);
 
-			RemoveSignSettings(settings);
+                        if (!string.IsNullOrWhiteSpace(signedText))
+                        {
+                                File.WriteAllText(outputRdpFilePath, signedText, Encoding.Unicode);
+                        }
+                }
 
-			EnsureAlternateFullAddressExists(settings);
+                /// <summary>
+                /// Signs the provided rdp string
+                /// </summary>
+                /// <param name="rdpText">The string data inside an rdp file</param>
+                /// <param name="signingCertificate">The certificate you wish to use when signing</param>
+                /// <param name="rsa">The RSA key to sign with</param>
+                /// <returns>The signed value within an rdp file</returns>
+                public static string Sign(string rdpText, X509Certificate2 signingCertificate, RSA rsa)
+                {
+                        return Sign(rdpText, signingCertificate, rsa, null);
+                }
 
-			List<RdpSetting> settingsToSign = settings.Where(setting => setting.IsSignableSetting).ToList();
+                private static string Sign(string rdpText, X509Certificate2 signingCertificate, RSA rsa, Uri timestampServerUri)
+                {
+                        List<RdpSetting> settings = ParseSettings(rdpText);
 
-			RdpSetting signScopeSetting = BuildSignScopeSetting(settingsToSign);
+                        RemoveSignSettings(settings);
 
-			settings.Add(signScopeSetting);
-			settingsToSign.Add(signScopeSetting);
+                        EnsureAlternateFullAddressExists(settings);
 
-			RdpSetting signatureSetting = BuildSignatureSetting(settingsToSign, signingCertificate, rsa);
+                        List<RdpSetting> settingsToSign = settings.Where(setting => setting.IsSignableSetting).ToList();
 
-			settings.Add(signatureSetting);
+                        RdpSetting signScopeSetting = BuildSignScopeSetting(settingsToSign);
 
-			string signedRdpFile = FlattenSettings(settings);
+                        settings.Add(signScopeSetting);
+                        settingsToSign.Add(signScopeSetting);
 
-			return signedRdpFile;
-		}
+                        RdpSetting signatureSetting = BuildSignatureSetting(settingsToSign, signingCertificate, rsa, timestampServerUri);
 
-		/// <summary>
-		/// Flattens a set of settings into their rdp file equivilent
-		/// </summary>
-		/// <param name="settings">The IEnumerable of settings to flatten</param>
-		/// <returns>The provided settings as a string in rdp file format</returns>
-		private static string FlattenSettings(List<RdpSetting> settings)
-		{
-			StringBuilder builder = new StringBuilder();
+                        settings.Add(signatureSetting);
 
-			foreach (RdpSetting setting in settings)
-			{
-				builder.Append(setting).Append(WindowsNewLine);
-			}
+                        string signedRdpFile = FlattenSettings(settings);
 
-			return builder.ToString();
-		}
+                        return signedRdpFile;
+                }
 
-		/// <summary>
-		/// Builds a signature setting for the provided settings
-		/// </summary>
-		/// <param name="settings">The settings to generate the signature for</param>
-		/// <param name="signingCertificate">The certificate to use to sign it</param>
-		/// <param name="rsa">The RSA key to sign with</param>
-		/// <returns>The rdp signature setting</returns>
-		private static RdpSetting BuildSignatureSetting(List<RdpSetting> settings, X509Certificate2 signingCertificate,  RSA rsa)
-		{
-			string textToSign = FlattenSettings(settings);
+                /// <summary>
+                /// Flattens a set of settings into their rdp file equivilent
+                /// </summary>
+                /// <param name="settings">The IEnumerable of settings to flatten</param>
+                /// <returns>The provided settings as a string in rdp file format</returns>
+                private static string FlattenSettings(List<RdpSetting> settings)
+                {
+                        StringBuilder builder = new StringBuilder();
 
-			byte[] bytesToSign = Encoding.Unicode.GetBytes(textToSign).Concat(TwoBlankBytes).ToArray();
+                        foreach (RdpSetting setting in settings)
+                        {
+                                builder.Append(setting).Append(WindowsNewLine);
+                        }
 
-			byte[] settingSignature = SignBytes(bytesToSign, signingCertificate, rsa);
+                        return builder.ToString();
+                }
 
-			uint settingSignatureLength = Convert.ToUInt32(settingSignature.Length);
+                /// <summary>
+                /// Builds a signature setting for the provided settings
+                /// </summary>
+                /// <param name="settings">The settings to generate the signature for</param>
+                /// <param name="signingCertificate">The certificate to use to sign it</param>
+                /// <param name="rsa">The RSA key to sign with</param>
+                /// <returns>The rdp signature setting</returns>
+                private static RdpSetting BuildSignatureSetting(List<RdpSetting> settings, X509Certificate2 signingCertificate,  RSA rsa, Uri timestampServerUri)
+                {
+                        string textToSign = FlattenSettings(settings);
 
-			byte[] settingSignatureLengthBytes = BitConverter.GetBytes(settingSignatureLength);
+                        byte[] bytesToSign = Encoding.Unicode.GetBytes(textToSign).Concat(TwoBlankBytes).ToArray();
 
-			byte[] signature = SignatureHeader.Concat(settingSignatureLengthBytes).Concat(settingSignature).ToArray();
+                        byte[] settingSignature = SignBytes(bytesToSign, signingCertificate, rsa, timestampServerUri);
 
-			string base64Signature = Convert.ToBase64String(signature);
+                        uint settingSignatureLength = Convert.ToUInt32(settingSignature.Length);
 
-			// Add the silly little spaces every 64 characters that rdpsign.exe adds:
-			base64Signature = Regex.Replace(base64Signature, ".{64}", "$0  ");
+                        byte[] settingSignatureLengthBytes = BitConverter.GetBytes(settingSignatureLength);
 
-			return new RdpSetting(RdpSettingHelper.SignatureSettingName, RdpSettingHelper.SignatureSettingType, base64Signature);
-		}
+                        byte[] signature = SignatureHeader.Concat(settingSignatureLengthBytes).Concat(settingSignature).ToArray();
+
+                        string base64Signature = Convert.ToBase64String(signature);
+
+                        // Add the silly little spaces every 64 characters that rdpsign.exe adds:
+                        base64Signature = Regex.Replace(base64Signature, ".{64}", "$0  ");
+
+                        return new RdpSetting(RdpSettingHelper.SignatureSettingName, RdpSettingHelper.SignatureSettingType, base64Signature);
+                }
 
         /// <summary>
         /// Signs a payload, using CMS, with the provided certificate
@@ -226,144 +254,148 @@ namespace NullOps.RdpSigner
         /// <param name="signingCertificate">The certificate to sign with</param>
         /// <param name="rsa">The RSA key to sign with</param>
         /// <returns>The signature</returns>
-        private static byte[] SignBytes(byte[] payload, X509Certificate2 signingCertificate, RSA rsa)
-		{
-			// When only an RSA private key is available (no X509Certificate2), create a CmsSigner
-			// that uses NoSignature identifier and attach the private key via the PrivateKey property.
-			// This avoids requiring a certificate while still producing a CMS signature using RSA.
-			CmsSigner signer = new CmsSigner(signingCertificate)
-			{
-				PrivateKey = rsa,
-				IncludeOption = X509IncludeOption.WholeChain,
-				DigestAlgorithm = Oid.FromFriendlyName(RdpSignatureDigestAlgorithmName, OidGroup.All)
-			};
+        private static byte[] SignBytes(byte[] payload, X509Certificate2 signingCertificate, RSA rsa, Uri timestampServerUri)
+                {
+                        // When only an RSA private key is available (no X509Certificate2), create a CmsSigner
+                        // that uses NoSignature identifier and attach the private key via the PrivateKey property.
+                        // This avoids requiring a certificate while still producing a CMS signature using RSA.
+                        CmsSigner signer = new CmsSigner(signingCertificate)
+                        {
+                                PrivateKey = rsa,
+                                IncludeOption = X509IncludeOption.WholeChain,
+                                DigestAlgorithm = Oid.FromFriendlyName(RdpSignatureDigestAlgorithmName, OidGroup.All)
+                        };
 
-			ContentInfo content = new ContentInfo(payload);
+                        ContentInfo content = new ContentInfo(payload);
 
-			SignedCms cmsPayload = new SignedCms(content, true);
+                        SignedCms cmsPayload = new SignedCms(content, true);
 
-			cmsPayload.ComputeSignature(signer);
+                        cmsPayload.ComputeSignature(signer);
+                        if (timestampServerUri != null)
+                        {
+                                Rfc3161TimestampClient.AddTimestamp(cmsPayload, timestampServerUri);
+                        }
 
-			return cmsPayload.Encode();
-		}
+                        return cmsPayload.Encode();
+                }
 
-		/// <summary>
-		/// Builds the sign scope setting for the provided settings
-		/// </summary>
-		/// <param name="settings">The settings to scope for</param>
-		/// <returns>The sign scope setting containing all scopes</returns>
-		private static RdpSetting BuildSignScopeSetting(List<RdpSetting> settings)
-		{
-			StringBuilder scopeBuilder = new StringBuilder();
+                /// <summary>
+                /// Builds the sign scope setting for the provided settings
+                /// </summary>
+                /// <param name="settings">The settings to scope for</param>
+                /// <returns>The sign scope setting containing all scopes</returns>
+                private static RdpSetting BuildSignScopeSetting(List<RdpSetting> settings)
+                {
+                        StringBuilder scopeBuilder = new StringBuilder();
 
-			foreach (RdpSetting setting in settings)
-			{
-				if (!RdpSettingHelper.SecureSettingScopes.ContainsKey(setting.SettingName))
-				{
-					throw new ArgumentException("Setting '" + setting.SettingName + "' has no known sign scope. (Are you sure it is signable?)");
-				}
+                        foreach (RdpSetting setting in settings)
+                        {
+                                if (!RdpSettingHelper.SecureSettingScopes.ContainsKey(setting.SettingName))
+                                {
+                                        throw new ArgumentException("Setting '" + setting.SettingName + "' has no known sign scope. (Are you sure it is signable?)");
+                                }
 
-				scopeBuilder.Append(RdpSettingHelper.SecureSettingScopes[setting.SettingName]).Append(',');
-			}
+                                scopeBuilder.Append(RdpSettingHelper.SecureSettingScopes[setting.SettingName]).Append(',');
+                        }
 
-			if (scopeBuilder.Length <= 0)
-			{
-				return null;
-			}
+                        if (scopeBuilder.Length <= 0)
+                        {
+                                return null;
+                        }
 
-			// Remove final comma
-			scopeBuilder.Length--;
+                        // Remove final comma
+                        scopeBuilder.Length--;
 
-			string settingValue = scopeBuilder.ToString();
+                        string settingValue = scopeBuilder.ToString();
 
-			return new RdpSetting(RdpSettingHelper.SignScopeSettingName, RdpSettingHelper.SignScopeSettingType, settingValue);
-		}
+                        return new RdpSetting(RdpSettingHelper.SignScopeSettingName, RdpSettingHelper.SignScopeSettingType, settingValue);
+                }
 
-		/// <summary>
-		/// Checks if an alternate full address is supplied, if not, then all it.
-		/// This stops people from adding a full address after the signing is done
-		/// </summary>
-		/// <param name="settings">The collection of settings to check and add to</param>
-		private static void EnsureAlternateFullAddressExists(List<RdpSetting> settings)
-		{
-			if (settings.Any(x => x.SettingName.Equals(RdpSettingHelper.AlternateFullAddressSettingName, StringComparison.OrdinalIgnoreCase)))
-			{
-				return;
-			}
+                /// <summary>
+                /// Checks if an alternate full address is supplied, if not, then all it.
+                /// This stops people from adding a full address after the signing is done
+                /// </summary>
+                /// <param name="settings">The collection of settings to check and add to</param>
+                private static void EnsureAlternateFullAddressExists(List<RdpSetting> settings)
+                {
+                        if (settings.Any(x => x.SettingName.Equals(RdpSettingHelper.AlternateFullAddressSettingName, StringComparison.OrdinalIgnoreCase)))
+                        {
+                                return;
+                        }
 
-			RdpSetting fullAddressSetting = settings.FirstOrDefault(x =>
-				x.SettingName.Equals(RdpSettingHelper.FullAddressSettingName, StringComparison.OrdinalIgnoreCase)
-				);
+                        RdpSetting fullAddressSetting = settings.FirstOrDefault(x =>
+                                x.SettingName.Equals(RdpSettingHelper.FullAddressSettingName, StringComparison.OrdinalIgnoreCase)
+                                );
 
-			if (fullAddressSetting == null)
-			{
-				throw new Exception("Supplied Rdp settings do not contain a '" + RdpSettingHelper.FullAddressSettingName + "' setting");
-			}
+                        if (fullAddressSetting == null)
+                        {
+                                throw new Exception("Supplied Rdp settings do not contain a '" + RdpSettingHelper.FullAddressSettingName + "' setting");
+                        }
 
-			settings.Add(new RdpSetting(RdpSettingHelper.AlternateFullAddressSettingName, fullAddressSetting.SettingType, fullAddressSetting.SettingValue));
-		}
+                        settings.Add(new RdpSetting(RdpSettingHelper.AlternateFullAddressSettingName, fullAddressSetting.SettingType, fullAddressSetting.SettingValue));
+                }
 
-		/// <summary>
-		/// Removes any existing signatures and sign scopes
-		/// </summary>
-		/// <param name="settings">The collection of settings to check</param>
-		private static void RemoveSignSettings(List<RdpSetting> settings)
-		{
-			settings.RemoveAll(setting =>
-				setting.SettingName.Equals(RdpSettingHelper.SignScopeSettingName, StringComparison.OrdinalIgnoreCase) ||
-				setting.SettingName.Equals(RdpSettingHelper.SignatureSettingName, StringComparison.OrdinalIgnoreCase)
-				);
-		}
+                /// <summary>
+                /// Removes any existing signatures and sign scopes
+                /// </summary>
+                /// <param name="settings">The collection of settings to check</param>
+                private static void RemoveSignSettings(List<RdpSetting> settings)
+                {
+                        settings.RemoveAll(setting =>
+                                setting.SettingName.Equals(RdpSettingHelper.SignScopeSettingName, StringComparison.OrdinalIgnoreCase) ||
+                                setting.SettingName.Equals(RdpSettingHelper.SignatureSettingName, StringComparison.OrdinalIgnoreCase)
+                                );
+                }
 
-		/// <summary>
-		/// Parses a string and converts each line into an rdp setting if it is valid
-		/// </summary>
-		/// <param name="data">The string to parse</param>
-		/// <returns>A list of rdp settings</returns>
-		private static List<RdpSetting> ParseSettings(string data)
-		{
-			List<RdpSetting> settings = new List<RdpSetting>();
+                /// <summary>
+                /// Parses a string and converts each line into an rdp setting if it is valid
+                /// </summary>
+                /// <param name="data">The string to parse</param>
+                /// <returns>A list of rdp settings</returns>
+                private static List<RdpSetting> ParseSettings(string data)
+                {
+                        List<RdpSetting> settings = new List<RdpSetting>();
 
-			if (string.IsNullOrWhiteSpace(data))
-			{
-				return settings;
-			}
+                        if (string.IsNullOrWhiteSpace(data))
+                        {
+                                return settings;
+                        }
 
-			using (StringReader reader = new StringReader(data))
-			{
-				string line;
-				while ((line = reader.ReadLine()) != null)
-				{
-					if (string.IsNullOrWhiteSpace(line))
-					{
-						continue;
-					}
+                        using (StringReader reader = new StringReader(data))
+                        {
+                                string line;
+                                while ((line = reader.ReadLine()) != null)
+                                {
+                                        if (string.IsNullOrWhiteSpace(line))
+                                        {
+                                                continue;
+                                        }
 
-					RdpSetting parsedSetting;
+                                        RdpSetting parsedSetting;
 
-					if (RdpSetting.TryParse(line, out parsedSetting))
-					{
-						settings.Add(parsedSetting);
-					}
-				}
-			}
+                                        if (RdpSetting.TryParse(line, out parsedSetting))
+                                        {
+                                                settings.Add(parsedSetting);
+                                        }
+                                }
+                        }
 
-			return settings;
-		}
+                        return settings;
+                }
 
-		/// <summary>
-		/// Disposes of this rdp signer.
-		/// </summary>
-		public void Dispose()
-		{
-			if (m_disposed)
-			{
-				return;
-			}
+                /// <summary>
+                /// Disposes of this rdp signer.
+                /// </summary>
+                public void Dispose()
+                {
+                        if (m_disposed)
+                        {
+                                return;
+                        }
 
-			m_disposed = true;
+                        m_disposed = true;
 
-			m_rsa.Dispose();
-		}
-	}
+                        m_rsa.Dispose();
+                }
+        }
 }

@@ -27,6 +27,9 @@ rdpsign --vault <vaulturi> --key <keyName> [options] <file1> [<file2> …]
 | `--tenant-id <ID>` | Tenant ID for service principal (required for `ClientSecret` and `Certificate` auth) |
 | `--cert <PATH>` | Path to a PFX certificate file (required for `Certificate` auth) |
 | `--cert-pass <PASSWORD>` | Password for the certificate file (optional) |
+| `--timestamp-url <URL>` | RFC 3161 timestamp server URL |
+
+Signing requires a successful timestamp response from the configured server. The timestamp token is embedded in the CMS signature and checked for a valid timestamping certificate chain before the signed file is written.
 
 Each input file is signed and written to `<filename>.signed.rdp`.
 

@@ -85,7 +85,7 @@ public class SignCommand : Command<SignSettings>
             var x509 = X509CertificateLoader.LoadCertificate(certWithPolicy.Value.Cer);
 
             var rsa = RSAFactory.Create(credential, certWithPolicy.Value.KeyId, x509);
-            using var signer = new RdpSigner(x509, rsa);
+            using var signer = new RdpSigner(x509, rsa, new Uri(settings.TimestampUrl));
 
             foreach (var file in settings.Files)
             {
